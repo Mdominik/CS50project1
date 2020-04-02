@@ -1,12 +1,11 @@
 import os
-
+from user import *
 from flask import Flask, session, render_template, request, jsonify,redirect
 from flask_session import Session
 from sqlalchemy import create_engine
 
 from sqlalchemy.orm import scoped_session, sessionmaker
 import requests
-
 
 app = Flask(__name__)
 
@@ -24,46 +23,36 @@ engine = create_engine(os.getenv("DATABASE_URL"))
 db = scoped_session(sessionmaker(bind=engine))
 res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": "9781632168146"})
 
-isLoggedin=False
 
 #storing all existing users in a dictionary. {username : [id, password, reviews]}
-listExistingUsers={}
 userCounter=0
-listLoggedUsers={}
-listReviews={}
-listReviews["username"]=[]
 
-class User:
-    def __init__(self, id, surname, reviews):
-        self.id = id
-        self.surname = surname
-        self.reviews = reviews
-    def findUserByID(id):
-        
-
+def noOneLoggedIn():
+    return session["id"]==0
 
 @app.route("/")
 def index():
     #return jsonify(res.json())
-    return render_template("homepage.html", loginFailed=False, id=session["id"])
+    return render_template("homepage.html", loginFailed=False, user=findUserByID(session["id"]))
 
 @app.route("/signedUp", methods=["POST"])
 def signedup():
-    global userCounter
+    global userCounter,listUsers
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        if username not in listExistingUsers:
+        user = findUserByUsername(username)
+        if user == "No user found":
             userCounter+=1
-            listExistingUsers[username] =  [userCounter, password]
+            listUsers.append(User(userCounter, username, password))
             session["id"] = userCounter
         else:
-            return render_template("signup.html", accountExists=True, id=session["id"])
-        return render_template("bookSearch.html", username=username, id=session["id"])
+            return render_template("signup.html", accountExists=True, user=findUserByID(session["id"]))
+        return render_template("bookSearch.html", user=findUserByID(session["id"]))
 
 @app.route("/signup")
 def signup():
-    if(session["id"]==0):
+    if(noOneLoggedIn()):
         return render_template("signup.html",accountExists=False)
     else:
         return redirect("/", code=302)
@@ -72,33 +61,34 @@ def signup():
 @app.route("/signout")
 def signout():
     session["id"] = 0
-    return render_template("homepage.html", loginFailed=False, id=session["id"])
+    return render_template("homepage.html", loginFailed=False, user=findUserByID(session["id"]))
 
 
 @app.route("/loggedIn", methods=["POST"])
 def loggedIn():
-    try:
-        username = request.form.get("username")
-        password = request.form.get("password")
-        rememberMe = request.form.get("remember-me")
-        if username in listExistingUsers and listExistingUsers[username][1]==password:
-            session["id"] = listExistingUsers[username][0]
-            listLoggedUsers[username]=[userCounter, password]
-            return render_template("bookSearch.html", username=username, id=session["id"])
-        return render_template("login.html", loginFailed=True, id=session["id"])
-    except:
-        db_session.rollback()
+    username = request.form.get("username")
+    password = request.form.get("password")
+    user = findUserByUsername(username)
+
+    if user == "No user found":
+        return render_template("login.html", loginFailed=True)
+    if user.getUsername() == username and user.getPassword() == password:
+        session["id"] = user.getID()
+        return render_template("bookSearch.html", user=findUserByID(session["id"]))
+    else:
+        return render_template("login.html", loginFailed=True)
+    return render_template("error.html")
 
 @app.route("/login")
 def login():
-    if(session["id"]==0):
-        return render_template("login.html", loginFailed=False, id=session["id"])
+    if(noOneLoggedIn()):
+        return render_template("login.html", loginFailed=False)
     else:
         return redirect("/", code=302)
 
 @app.route("/book-query", methods=["GET","POST"])
 def bookQuery():
-    if(session["id"]!=0):
+    if(not noOneLoggedIn()):
         try:
             if request.method == "POST":
                 title = request.form.get("title")
@@ -107,11 +97,11 @@ def bookQuery():
                 books = db.execute("SELECT * FROM books WHERE title = :title OR isbn = :isbn",
                                   {"title": title, "isbn": isbn}).fetchall()
                 if len(books)==0:
-                    return render_template("bookSearch.html", bookNotFound=True, id=session["id"])
+                    return render_template("bookSearch.html", bookNotFound=True, user=findUserByID(session["id"]))
                 db.commit()
-                return render_template("bookRecord.html", books=books, id=session["id"])
+                return render_template("bookRecord.html", books=books, user=findUserByID(session["id"]))
             elif request.method == "GET":
-                return render_template("bookSearch.html", bookNotFound=False, id=session["id"])
+                return render_template("bookSearch.html", bookNotFound=False, user=findUserByID(session["id"]))
         except:
             db_session.rollback()
     else:
