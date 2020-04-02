@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block title %}
+  Book record
+{% endblock %}
+{% block body %}
+<div class="container">
+      {% for book in books %}
+      <div class="card" style="width: 18rem;">
+        <div class="card-body">
+          <h5 class="card-title">{{ book.title }}</h5>
+          <p class="card-text">{{ book.isbn }}</p>
+          <a href="#" class="btn btn-primary">Go somewhere</a>
+        </div>
+      </div>
+      {% endfor %}
+</div>
+{% endblock %}
