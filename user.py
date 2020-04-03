@@ -25,7 +25,6 @@ listUsers=[]
 #null User
 listUsers.append(User(0, "null", "null"))
 
-
 def findUserByID(id):
     global listUsers
     for user in listUsers:

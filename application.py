@@ -1,5 +1,6 @@
 import os
 from user import *
+from review import Review
 from flask import Flask, session, render_template, request, jsonify,redirect
 from flask_session import Session
 from sqlalchemy import create_engine
@@ -24,7 +25,7 @@ db = scoped_session(sessionmaker(bind=engine))
 res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": "9781632168146"})
 
 
-#storing all existing users in a dictionary. {username : [id, password, reviews]}
+#user's id
 userCounter=0
 
 def noOneLoggedIn():
