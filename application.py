@@ -90,20 +90,24 @@ def login():
 @app.route("/book-query", methods=["GET","POST"])
 def bookQuery():
     if(not noOneLoggedIn()):
-        try:
-            if request.method == "POST":
-                title = request.form.get("title")
-                author = request.form.get("author")
-                isbn = request.form.get("isbn")
-                books = db.execute("SELECT * FROM books WHERE title = :title OR isbn = :isbn",
-                                  {"title": title, "isbn": isbn}).fetchall()
-                if len(books)==0:
-                    return render_template("bookSearch.html", bookNotFound=True, user=findUserByID(session["id"]))
-                db.commit()
-                return render_template("bookRecord.html", books=books, user=findUserByID(session["id"]))
-            elif request.method == "GET":
-                return render_template("bookSearch.html", bookNotFound=False, user=findUserByID(session["id"]))
-        except:
-            db_session.rollback()
+        if request.method == "POST":
+            title = request.form.get("title")
+            author = request.form.get("author")
+            isbn = request.form.get("isbn")
+            query = "SELECT * FROM books WHERE title LIKE '%%%s%%' AND isbn LIKE '%%%s%%'" % (title, isbn)
+            books = db.execute(query).fetchall()
+            if len(books)==0:
+                return render_template("bookSearch.html", bookNotFound=True, user=findUserByID(session["id"]))
+            db.commit()
+            return render_template("bookRecord.html", books=books, user=findUserByID(session["id"]))
+        elif request.method == "GET":
+            return render_template("bookSearch.html", bookNotFound=False, user=findUserByID(session["id"]))
     else:
         return redirect("/", code=302)
+
+@app.route("/book/<string:isbn>", methods=["GET","POST"])
+def book(isbn):
+    title=request.args.get('title')
+    author=request.args.get('author')
+    if request.method == "GET":
+        return render_template("book.html", title=title, isbn=isbn, author=author, rating=3.7, user=findUserByID(session["id"]))

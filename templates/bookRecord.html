@@ -4,15 +4,39 @@
   Book record
 {% endblock %}
 {% block body %}
+<ul class="nav justify-content-end">
+  <li class="nav-item">
+    <a class="nav-link active" href="{{ url_for('index') }}">Home</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('bookQuery') }}">Search books</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('signout') }}">Sign out</a>
+  </li>
+</ul>
 <div class="container">
-      {% for book in books %}
-      <div class="card" style="width: 18rem;">
-        <div class="card-body">
-          <h5 class="card-title">{{ book.title }}</h5>
-          <p class="card-text">{{ book.isbn }}</p>
-          <a href="#" class="btn btn-primary">Go somewhere</a>
-        </div>
-      </div>
-      {% endfor %}
+  {% if user.id != 0 %}
+  <div class="alert alert-success" role="alert">
+    Logged in as: {{user.username}}
+  </div>
+  {% endif %}
+  <div class="row">
+    {% for book in books %}
+    <div class="p-4 col-sm-6 col-md-4 col-lg-3 border border-info">
+
+
+      <span class="fa fa-star checked"></span>
+      <span class="fa fa-star checked"></span>
+      <span class="fa fa-star checked"></span>
+      <span class="fa fa-star"></span>
+      <span class="fa fa-star"></span>
+
+      <h5 class="card-title">{{ book.title }}</h5>
+      <p class="card-text">{{ book.isbn }}</p>
+      <a href="{{ url_for('book', title=book.title, isbn=book.isbn, author=book.author) }}" class="btn btn-primary">Open</a>
+    </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

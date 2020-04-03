@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block title %}
+  Book
+{% endblock %}
+
+{% block body %}
+<ul class="nav justify-content-end">
+  <li class="nav-item">
+    <a class="nav-link active" href="{{ url_for('index') }}">Home</a>
+  </li>
+  {% if user.id == 0 %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('signup') }}">Sign up</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('login') }}">Log in</a>
+    </li>
+  {% else %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('bookQuery') }}">Search books</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('signout') }}">Sign out</a>
+    </li>
+  {% endif %}
+</ul>
+<div class="container">
+{% if user.id != 0 %}
+    <div class="alert alert-success" role="alert">
+      Logged in as: {{user.username}}
+    </div>
+{% endif %}
+  <div class="row">
+    <div class="col-6">
+      <div class="card">
+        <img class="card-img-top">
+        <div class="card-body">
+          <h5 class="card-title">Title: {{title}}</h5>
+          <p class="card-text">Author: {{author}}</p>
+          <p class="card-text">ISBN: {{isbn}}</p>
+          Current rating:
+          {% for i in range(rating|round|int) %}
+          <span class="fa fa-star checked"></span>
+          {% endfor %}
+          {% for i in range(5-rating|round|int) %}
+          <span class="fa fa-star"></span>
+          {% endfor %}
+
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <h3 class="text-center p-4">What do you think about the book?</h3>
+      <div class="row text-center justify-content-md-center">
+        <h5 class="text-center p-1">Give rating:</h5>
+        <div class="align-items-center">
+          <a href="#" class="btn btn-danger">1</a>
+          <a href="#" class="btn btn-warning">2</a>
+          <a href="#" class="btn btn-secondary">3</a>
+          <a href="#" class="btn btn-primary">4</a>
+          <a href="#" class="btn btn-success">5</a>
+        </div>
+      </div>
+      <div id="login">
+
+          <div class="container p-4">
+              <div id="login-row" class="row justify-content-center align-items-center">
+                  <div id="login-column" class="col-md-12">
+                      <div id="login-box" class="col-md-12">
+                          <form id="login-form" class="form" action="{{ url_for ('signedup') }}" method="post">
+                              <div class="form-group">
+                                  <label for="username" class="text-info">Write a comment:</label><br>
+                                  <textarea class="form-control" id="comment" rows="5"></textarea>
+                              </div>
+                              <div class="form-group">
+                                  <input type="submit" name="submit" class="btn btn-info btn-md" value="sign up">
+                              </div>
+                          </form>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+    </div>
+</div>
+{% endblock %}
