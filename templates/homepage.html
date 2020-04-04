@@ -9,7 +9,7 @@
   <li class="nav-item">
     <a class="nav-link active" href="{{ url_for('index') }}">Home</a>
   </li>
-  {% if user.id == 0 %}
+  {% if user == None %}
     <li class="nav-item">
       <a class="nav-link" href="{{ url_for('signup') }}">Sign up</a>
     </li>
@@ -26,9 +26,9 @@
   {% endif %}
 </ul>
 <div class="container">
-{% if user.id != 0 %}
+{% if user != None %}
     <div class="alert alert-success" role="alert">
-      Logged in as: {{user.username}} 
+      Logged in as: {{user.username}}
     </div>
 {% endif %}
     <h3 class="text-center text-info">Books app</h3>

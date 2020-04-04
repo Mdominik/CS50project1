@@ -22,11 +22,16 @@ db_session=Session(app)
 # Set up database
 engine = create_engine(os.getenv("DATABASE_URL"))
 db = scoped_session(sessionmaker(bind=engine))
-res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": "9781632168146"})
-
 
 #user's id
 userCounter=0
+
+def getHighestSessionID():
+    id = db.execute("SELECT id FROM users ORDER BY id DESC LIMIT 1").fetchone()
+    db.commit()
+    for i in id:
+        print(i)
+        return i
 
 def noOneLoggedIn():
     return session["id"]==0
@@ -34,22 +39,34 @@ def noOneLoggedIn():
 @app.route("/")
 def index():
     #return jsonify(res.json())
-    return render_template("homepage.html", loginFailed=False, user=findUserByID(session["id"]))
+    print("Session in homepage:")
+    print(session["id"])
+    if session["id"]!=0:
+        user = db.execute("SELECT * FROM users WHERE id = :id", {"id" : session["id"]}).fetchone()
+        db.commit()
+        return render_template("homepage.html", loginFailed=False, user=user)
+    else:
+        return render_template("homepage.html", loginFailed=False, user=None)
 
 @app.route("/signedUp", methods=["POST"])
 def signedup():
-    global userCounter,listUsers
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        user = findUserByUsername(username)
-        if user == "No user found":
-            userCounter+=1
-            listUsers.append(User(userCounter, username, password))
-            session["id"] = userCounter
+        user = db.execute("SELECT * FROM users WHERE username = :username", {"username" : username}).fetchone()
+
+        db.commit()
+        if  user==None:
+            db.execute("INSERT INTO users (username,password) VALUES (:username, :password)",
+            {"username":username, "password":password})
+            db.commit()
+            user = db.execute("SELECT * FROM users WHERE username = :username", {"username" : username}).fetchone()
+            db.commit()
+            session["id"] = getHighestSessionID()
+            return render_template("bookSearch.html", user=user)
         else:
-            return render_template("signup.html", accountExists=True, user=findUserByID(session["id"]))
-        return render_template("bookSearch.html", user=findUserByID(session["id"]))
+            return render_template("signup.html", accountExists=True, user=user)
+
 
 @app.route("/signup")
 def signup():
@@ -58,26 +75,23 @@ def signup():
     else:
         return redirect("/", code=302)
 
-
 @app.route("/signout")
 def signout():
     session["id"] = 0
-    return render_template("homepage.html", loginFailed=False, user=findUserByID(session["id"]))
+    return render_template("homepage.html", loginFailed=False, user=None)
 
 
 @app.route("/loggedIn", methods=["POST"])
 def loggedIn():
     username = request.form.get("username")
     password = request.form.get("password")
-    user = findUserByUsername(username)
-
-    if user == "No user found":
+    user = db.execute("SELECT * FROM users WHERE username = :username AND password = :password", {"username" : username, "password":password}).fetchone()
+    db.commit()
+    if user==None:
         return render_template("login.html", loginFailed=True)
-    if user.getUsername() == username and user.getPassword() == password:
-        session["id"] = user.getID()
-        return render_template("bookSearch.html", user=findUserByID(session["id"]))
     else:
-        return render_template("login.html", loginFailed=True)
+        session["id"] = user.id
+        return render_template("bookSearch.html", user=user)
     return render_template("error.html")
 
 @app.route("/login")
@@ -96,12 +110,16 @@ def bookQuery():
             isbn = request.form.get("isbn")
             query = "SELECT * FROM books WHERE title LIKE '%%%s%%' AND isbn LIKE '%%%s%%'" % (title, isbn)
             books = db.execute(query).fetchall()
-            if len(books)==0:
-                return render_template("bookSearch.html", bookNotFound=True, user=findUserByID(session["id"]))
             db.commit()
-            return render_template("bookRecord.html", books=books, user=findUserByID(session["id"]))
+            user = db.execute("SELECT * FROM users WHERE id = :id", { "id":session["id"] }).fetchone()
+            db.commit()
+            if books == []:
+                return render_template("bookSearch.html", bookNotFound=True, user=user)
+            return render_template("bookRecord.html", books=books, user=user)
         elif request.method == "GET":
-            return render_template("bookSearch.html", bookNotFound=False, user=findUserByID(session["id"]))
+            user = db.execute("SELECT * FROM users WHERE id = :id", {"id" : session["id"]}).fetchone()
+            db.commit()
+            return render_template("bookSearch.html", bookNotFound=False, user=user)
     else:
         return redirect("/", code=302)
 
@@ -109,5 +127,16 @@ def bookQuery():
 def book(isbn):
     title=request.args.get('title')
     author=request.args.get('author')
+    res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": isbn})
+    book = db.execute("SELECT * FROM books WHERE isbn = :isbn", {"isbn":isbn}).fetchone()
+    db.commit()
+    #db.execute("INSERT INTO mybooks (isbn,title,year,rating,numberComments) VALUES (:isbn,:title,:year,:rating,:numberComments)",
+    #{"isbn":book.isbn, "title":book.title,"year":book.year,"rating":0,"numberComments":0})
+
+    #db.commit()
+    user = db.execute("SELECT * FROM users WHERE id = :id", {"id":session["id"]}).fetchone()
+    db.commit()
     if request.method == "GET":
-        return render_template("book.html", title=title, isbn=isbn, author=author, rating=3.7, user=findUserByID(session["id"]))
+        print(book)
+        print(user)
+        return render_template("book.html", book=book, myRating = 4.5, goodReadsRating = 4.3, numberComments = 3, user=user)
