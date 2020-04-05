@@ -130,7 +130,7 @@ def loggedIn():
     username = request.form.get("username")
     password = request.form.get("password")
 
-    #search for the row in users database matching username and password
+    #search for the row in users table database matching username and password
     user = db.execute("SELECT * FROM users WHERE username = :username AND password = :password", {"username" : username, "password":password}).fetchone()
     db.commit()
 
