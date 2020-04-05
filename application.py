@@ -36,11 +36,20 @@ def getHighestSessionID():
         #print(i)
         return i
 
-#find a user in the database
+#find a user in the database by session
 def findUserByID():
         user = db.execute("SELECT * FROM users WHERE id = :id", {"id" : session["id"]}).fetchone()
         db.commit()
         return user
+
+#find a user in the database by explicitly giving ID
+def findUserByGivenID(id):
+        users=[]
+        for i in id:
+            users.append(db.execute("SELECT username FROM users WHERE id = :id", {"id" : i[0]}).fetchone())
+        db.commit()
+        return [item for t in users for item in t]
+
 
 def findUserByUsername(username):
         user = db.execute("SELECT * FROM users WHERE username = :username", {"username" : username}).fetchone()
@@ -63,12 +72,11 @@ def someoneLoggedIn():
 
 @app.route("/")
 def index():
-    #return jsonify(res.json())
-    print("Session in homepage:")
-    print(session["id"])
     if someoneLoggedIn():
         user = findUserByID()
-        return render_template("homepage.html", loginFailed=False, user=user)
+        userReviews = db.execute("SELECT * FROM reviews WHERE iduser = :iduser", {"iduser":session["id"]}).fetchall()
+        db.commit()
+        return render_template("homepage.html", loginFailed=False, user=user, userReviews=userReviews)
     else:
         return render_template("homepage.html", loginFailed=False, user=None)
 
@@ -159,7 +167,7 @@ def bookQuery():
             isbn = request.form.get("isbn")
 
             #select all possible records
-            query = "SELECT * FROM books WHERE title LIKE '%%%s%%' AND isbn LIKE '%%%s%%'" % (title, isbn)
+            query = "SELECT * FROM books WHERE LOWER(title) LIKE '%%%s%%' AND isbn LIKE '%%%s%%'" % (title, isbn)
             books = db.execute(query).fetchall()
             db.commit()
 
@@ -185,59 +193,71 @@ def book(isbn):
     title=request.args.get('title')
     author=request.args.get('author')
     res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": isbn})
-    book = getBookByISBN(isbn)
 
     avg_rating_goodreads = res.json()["books"][0]["average_rating"]
-
+    numberOfReviewsGoodreads = res.json()["books"][0]["work_reviews_count"]
 
     reviews = getReviewsByISBN(isbn)
-
-    #db.execute("INSERT INTO mybooks (isbn,title,year,author) VALUES (:isbn,:title,:year,:rating,:numberComments)",
-    #{"isbn":book.isbn, "title":book.title,"year":book.year,"rating":0,"numberComments":0})
-
-    #db.commit()
 
     #find current user
     user = findUserByID()
 
-
     #get book from goodreads preloaded table
     book = getBookByISBN(isbn)
-    print("ALL REVIEWS:")
-    print(reviews)
-    #
+
     our_average_rating=0.0
 
-
-
-
-    if request.method == "GET":
-        #select book's reviews
-        pass
-
-    elif request.method == "POST":
+    if request.method == "POST":
         comment = request.form.get("comment")
         rating = request.form.get("myBookRating")
-        #print(comment)
-        print(rating)
-
         db.execute("INSERT INTO reviews (iduser,isbn,rating,comment,date) VALUES (:iduser,:isbn,:rating,:comment,:date)",
-        {"iduser":session["id"],"isbn":book.isbn,"rating":rating,"comment":comment,"date":datetime.datetime.now()})
+        {"iduser":session["id"],"isbn":book.isbn,"rating":rating,"comment":comment,"date":datetime.datetime.now().strftime("%Y-%m-%d %H:%M")})
         db.commit()
 
     #select book's reviews
     reviews = getReviewsByISBN(isbn)
 
+    #calculate an average rating for the book
     for review in reviews:
         our_average_rating = our_average_rating + float(review["rating"])
-
     try:
         our_average_rating = our_average_rating / len(reviews)
     except ZeroDivisionError:
         our_average_rating=0
 
-    books = db.execute("SELECT * FROM reviews WHERE iduser = :iduser ", {"iduser":session["id"]}).fetchall()
+    #find user's review of the current book
+    yourReview = db.execute("SELECT * FROM reviews WHERE iduser = :iduser AND isbn = :isbn ", {"iduser":session["id"], "isbn":isbn}).fetchone()
     db.commit()
-    reviewWritten = books is []
 
-    return render_template("book.html", book=book, goodReadsRating = float(avg_rating_goodreads), our_average_rating = our_average_rating,  user=user, reviews=reviews, reviewWritten=reviewWritten)
+    #find all the users that commented the book
+    usersCommented = db.execute("SELECT iduser FROM reviews WHERE isbn = :isbn ", {"isbn":isbn}).fetchall()
+    db.commit()
+
+    #zip() function
+    app.jinja_env.filters['zip'] = zip
+
+    u = findUserByGivenID(usersCommented)
+    return render_template("book.html", book=book, goodReadsRating = float(avg_rating_goodreads),
+    our_average_rating = our_average_rating,  user=user, reviews=reviews, yourReview=yourReview, numberOfReviewsGoodreads = numberOfReviewsGoodreads, usersCommented=zip(reviews, u))
+
+@app.route("/api/<string:isbn>")
+def apiRequest(isbn):
+    reviews = getReviewsByISBN(isbn)
+    book = getBookByISBN(isbn)
+    average_rating = 0.0
+    reviewsCount = len(reviews)
+    for review in reviews:
+        average_rating = average_rating + float(review["rating"])
+    try:
+        average_rating = average_rating / reviewsCount
+    except ZeroDivisionError:
+        average_rating=0
+
+    return jsonify({
+        "title": book.title,
+        "author": book.author,
+        "year": book.year,
+        "isbn": isbn,
+        "review_count": reviewsCount,
+        "average_score": average_rating
+    })

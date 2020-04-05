@@ -26,11 +26,35 @@
   {% endif %}
 </ul>
 <div class="container">
-{% if user != None %}
+    {% if user != None %}
     <div class="alert alert-success" role="alert">
       Logged in as: {{user.username}}
     </div>
-{% endif %}
+    <h3 class="text-center text-info">Your comments:</h3>
+    {% else %}
     <h3 class="text-center text-info">Books app</h3>
-</div>
+    
+    {% endif %}
+    {% for userReview in userReviews %}
+    <div class="card">
+      <img class="card-img-top">
+      <div class="card-body">
+        <p class="card-text">ISBN: {{ userReview.isbn }}</p>
+        <p class="card-text">Date: {{ userReview.date }}</p>
+        {% for i in range(userReview.rating|int) %}
+        <span class="fa fa-star checked"></span>
+        {% endfor %}
+        {% for i in range(5-userReview.rating|int) %}
+        <span class="fa fa-star"></span>
+        {% endfor %}
+        <br/>
+        <p>
+          {{ userReview.comment }}
+
+        </p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
 {% endblock %}
