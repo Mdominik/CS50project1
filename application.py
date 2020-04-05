@@ -30,18 +30,18 @@ def getHighestSessionID():
     id = db.execute("SELECT id FROM users ORDER BY id DESC LIMIT 1").fetchone()
     db.commit()
     for i in id:
-        print(i)
+        #print(i)
         return i
 
-def noOneLoggedIn():
-    return session["id"]==0
+def someoneOneLoggedIn():
+    return session["id"]!=0
 
 @app.route("/")
 def index():
     #return jsonify(res.json())
     print("Session in homepage:")
     print(session["id"])
-    if session["id"]!=0:
+    if someoneOneLoggedIn():
         user = db.execute("SELECT * FROM users WHERE id = :id", {"id" : session["id"]}).fetchone()
         db.commit()
         return render_template("homepage.html", loginFailed=False, user=user)
@@ -70,7 +70,7 @@ def signedup():
 
 @app.route("/signup")
 def signup():
-    if(noOneLoggedIn()):
+    if(not someoneOneLoggedIn()):
         return render_template("signup.html",accountExists=False)
     else:
         return redirect("/", code=302)
@@ -96,14 +96,14 @@ def loggedIn():
 
 @app.route("/login")
 def login():
-    if(noOneLoggedIn()):
+    if(not someoneOneLoggedIn()):
         return render_template("login.html", loginFailed=False)
     else:
         return redirect("/", code=302)
 
 @app.route("/book-query", methods=["GET","POST"])
 def bookQuery():
-    if(not noOneLoggedIn()):
+    if(someoneOneLoggedIn()):
         if request.method == "POST":
             title = request.form.get("title")
             author = request.form.get("author")
@@ -130,6 +130,7 @@ def book(isbn):
     res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "6fHbYVtE5pAhvv6MTXk0Q", "isbns": isbn})
     book = db.execute("SELECT * FROM books WHERE isbn = :isbn", {"isbn":isbn}).fetchone()
     db.commit()
+    print(res.json()["books"]["isbn"])
     #db.execute("INSERT INTO mybooks (isbn,title,year,rating,numberComments) VALUES (:isbn,:title,:year,:rating,:numberComments)",
     #{"isbn":book.isbn, "title":book.title,"year":book.year,"rating":0,"numberComments":0})
 
@@ -137,6 +138,20 @@ def book(isbn):
     user = db.execute("SELECT * FROM users WHERE id = :id", {"id":session["id"]}).fetchone()
     db.commit()
     if request.method == "GET":
-        print(book)
-        print(user)
-        return render_template("book.html", book=book, myRating = 4.5, goodReadsRating = 4.3, numberComments = 3, user=user)
+        return render_template("book.html", book=book, myRating = 4, goodReadsRating = data["average_rating"], numberComments = data["ratings_count"], user=user)
+    elif request.method == "POST":
+        comment = request.form.get("comment")
+        rating1 = request.form.get("rating1")
+        rating2 = request.form.get("rating2")
+        rating3 = request.form.get("rating3")
+        rating4 = request.form.get("rating4")
+        rating5 = request.form.get("rating5")
+        print(comment)
+        print(rating1)
+        print(rating2)
+        print(rating3)
+        print(rating4)
+        print(rating5)
+
+
+        return render_template("book.html", book=book, myRating = 4, goodReadsRating = data["average_rating"], numberComments = data["ratings_count"], user=user)
