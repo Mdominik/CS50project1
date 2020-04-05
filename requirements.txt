@@ -2,4 +2,4 @@ Flask
 Flask-Session
 psycopg2-binary
 SQLAlchemy
-web: flask translate compile; gunicorn app:app
+web: flask translate compile; gunicorn application:app
